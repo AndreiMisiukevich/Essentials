@@ -4,16 +4,58 @@ namespace Xamarin.Essentials
 {
     public static partial class Connectivity
     {
-        static NetworkAccess PlatformNetworkAccess =>
-            throw new System.PlatformNotSupportedException();
+        static ReachabilityListener listener;
 
-        static IEnumerable<ConnectionProfile> PlatformConnectionProfiles =>
-            throw new System.PlatformNotSupportedException();
+        static void StartListeners()
+        {
+            listener = new ReachabilityListener();
+            listener.ReachabilityChanged += OnConnectivityChanged;
+        }
 
-        static void StartListeners() =>
-            throw new System.PlatformNotSupportedException();
+        static void StopListeners()
+        {
+            if (listener == null)
+                return;
 
-        static void StopListeners() =>
-            throw new System.PlatformNotSupportedException();
+            listener.ReachabilityChanged -= OnConnectivityChanged;
+            listener.Dispose();
+            listener = null;
+        }
+
+        static NetworkAccess PlatformNetworkAccess
+        {
+            get
+            {
+                var internetStatus = Reachability.InternetConnectionStatus();
+                if (internetStatus == NetworkStatus.ReachableViaWiFiNetwork)
+                    return NetworkAccess.Internet;
+
+                var remoteHostStatus = Reachability.RemoteHostStatus();
+                if (remoteHostStatus == NetworkStatus.ReachableViaWiFiNetwork)
+                    return NetworkAccess.Internet;
+
+                return NetworkAccess.None;
+            }
+        }
+
+        static IEnumerable<ConnectionProfile> PlatformConnectionProfiles
+        {
+            get
+            {
+                var statuses = Reachability.GetActiveConnectionType();
+                foreach (var status in statuses)
+                {
+                    switch (status)
+                    {
+                        case NetworkStatus.ReachableViaWiFiNetwork:
+                            yield return ConnectionProfile.WiFi;
+                            break;
+                        default:
+                            yield return ConnectionProfile.Unknown;
+                            break;
+                    }
+                }
+            }
+        }
     }
 }
